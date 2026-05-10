@@ -580,7 +580,7 @@ $pageTitle = $categoryLabels[$category] ?? 'All Products';
           Clothing <span class="count">44</span>
         </a>
         <a href="?category=home_decor&sort=<?= urlencode($sort) ?>" class="cat-pill <?= $category === 'home_decor' ? 'active' : '' ?>">
-          Home Décor <span class="count">28</span>
+          Home Decor <span class="count">28</span>
         </a>
         <a href="?category=accessories&sort=<?= urlencode($sort) ?>" class="cat-pill <?= $category === 'accessories' ? 'active' : '' ?>">
           Accessories <span class="count">19</span>

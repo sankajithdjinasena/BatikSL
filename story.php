@@ -164,10 +164,36 @@ require_once 'config/database.php';
   }
   .timeline-item:last-child { margin-bottom: 0; }
 
-  /* alternate sides */
-  .timeline-item:nth-child(even) .tl-left  { order: 3; text-align: left;  padding-left: 2.5rem; padding-right: 0; }
-  .timeline-item:nth-child(even) .tl-center { order: 2; }
-  .timeline-item:nth-child(even) .tl-right { order: 1; text-align: right; padding-right: 2.5rem; padding-left: 0; }
+ /* left cards */
+.tl-left {
+  text-align: right;
+  padding-right: 2.5rem;
+}
+
+/* right cards */
+.tl-right {
+  text-align: left;
+  padding-left: 2.5rem;
+}
+
+/* keep card width consistent */
+.tl-card {
+  background: white;
+  border-radius: 14px;
+  padding: 1.6rem 1.8rem;
+  border: 1px solid var(--border);
+  transition: box-shadow 0.3s, transform 0.3s;
+  max-width: 360px;
+}
+
+/* align cards properly */
+.tl-left .tl-card {
+  margin-left: auto;
+}
+
+.tl-right .tl-card {
+  margin-right: auto;
+}
 
   .tl-left  { text-align: right; padding-right: 2.5rem; }
   .tl-right { text-align: left;  padding-left: 2.5rem; }
