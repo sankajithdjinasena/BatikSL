@@ -126,7 +126,7 @@ $pageTitle = $categoryLabels[$category] ?? 'All Products';
     text-transform: uppercase; color: var(--teal);
     text-decoration: none; transition: all 0.25s;
   }
-  .nav-signin:hover { background: var(--teal); color: white; }
+  .nav-signin:hover { color: white; }
 
   /* ── BREADCRUMB ── */
   .breadcrumb-bar {
@@ -526,7 +526,6 @@ $pageTitle = $categoryLabels[$category] ?? 'All Products';
     <li><a href="catalog.php" class="active">Shop</a></li>
     <li><a href="story.php">Our Story</a></li>
     <li><a href="booking.php">Live Session</a></li>
-    <li><a href="account.php">Account</a></li>
   </ul>
   <div class="nav-icons">
     <button aria-label="Search"><i class="fas fa-search"></i></button>

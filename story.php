@@ -52,7 +52,7 @@ require_once 'config/database.php';
   .nav-icons a:hover, .nav-icons button:hover { color: var(--teal); }
   .cart-badge { position: absolute; top: -6px; right: -8px; background: var(--gold); color: white; font-size: 0.62rem; font-weight: 700; width: 17px; height: 17px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
   .nav-signin { padding: 0.45rem 1.3rem; border: 1.5px solid var(--teal); border-radius: 2rem; font-size: 0.78rem; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: var(--teal); text-decoration: none; transition: all 0.25s; }
-  .nav-signin:hover { background: var(--teal); color: white; }
+  .nav-signin:hover { color: white; }
 
   /* ── HERO ── */
   .story-hero {
@@ -406,7 +406,6 @@ require_once 'config/database.php';
     <li><a href="catalog.php">Shop</a></li>
     <li><a href="story.php" class="active">Our Story</a></li>
     <li><a href="booking.php">Live Session</a></li>
-    <li><a href="account.php">Account</a></li>
   </ul>
   <div class="nav-icons">
     <button aria-label="Search"><i class="fas fa-search"></i></button>
