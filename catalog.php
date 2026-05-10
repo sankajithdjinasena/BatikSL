@@ -23,6 +23,7 @@ if ($maxPrice && $maxPrice < 100000) {
     $params['maxPrice'] = $maxPrice;
 }
 
+
 switch ($sort) {
     case 'price_low':  $query .= " ORDER BY p.price ASC";        break;
     case 'price_high': $query .= " ORDER BY p.price DESC";       break;
@@ -50,6 +51,26 @@ $categoryLabels = [
     'accessories'=> 'Accessories & Scarves',
 ];
 $pageTitle = $categoryLabels[$category] ?? 'All Products';
+
+$counts = [];
+
+$countQuery = "
+    SELECT category, COUNT(*) AS total
+    FROM products
+    WHERE status = 1
+    GROUP BY category
+";
+
+$countStmt = $pdo->prepare($countQuery);
+$countStmt->execute();
+
+while ($row = $countStmt->fetch(PDO::FETCH_ASSOC)) {
+    $counts[$row['category']] = $row['total'];
+}
+
+/* total products */
+$totalProducts = array_sum($counts);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -568,24 +589,41 @@ $pageTitle = $categoryLabels[$category] ?? 'All Products';
 
     <!-- Category -->
     <div class="filter-section">
-      <span class="filter-label">Category</span>
-      <div class="cat-pills">
-        <a href="catalog.php" class="cat-pill <?= (!$category || $category === 'all') ? 'active' : '' ?>">
-          All Products <span class="count">—</span>
+    <span class="filter-label">Category</span>
+
+    <div class="cat-pills">
+
+        <a href="catalog.php"
+        class="cat-pill <?= (!$category || $category === 'all') ? 'active' : '' ?>">
+        All Products
+        <span class="count"><?= $totalProducts ?></span>
         </a>
-        <a href="?category=fabric&sort=<?= urlencode($sort) ?>" class="cat-pill <?= $category === 'fabric' ? 'active' : '' ?>">
-          Fabric Yardage <span class="count">36</span>
+
+        <a href="?category=fabric&sort=<?= urlencode($sort) ?>"
+        class="cat-pill <?= $category === 'fabric' ? 'active' : '' ?>">
+        Fabric Yardage
+        <span class="count"><?= $counts['fabric'] ?? 0 ?></span>
         </a>
-        <a href="?category=clothing&sort=<?= urlencode($sort) ?>" class="cat-pill <?= $category === 'clothing' ? 'active' : '' ?>">
-          Clothing <span class="count">44</span>
+
+        <a href="?category=clothing&sort=<?= urlencode($sort) ?>"
+        class="cat-pill <?= $category === 'clothing' ? 'active' : '' ?>">
+        Clothing
+        <span class="count"><?= $counts['clothing'] ?? 0 ?></span>
         </a>
-        <a href="?category=home_decor&sort=<?= urlencode($sort) ?>" class="cat-pill <?= $category === 'home_decor' ? 'active' : '' ?>">
-          Home Decor <span class="count">28</span>
+
+        <a href="?category=home_decor&sort=<?= urlencode($sort) ?>"
+        class="cat-pill <?= $category === 'home_decor' ? 'active' : '' ?>">
+        Home Decor
+        <span class="count"><?= $counts['home_decor'] ?? 0 ?></span>
         </a>
-        <a href="?category=accessories&sort=<?= urlencode($sort) ?>" class="cat-pill <?= $category === 'accessories' ? 'active' : '' ?>">
-          Accessories <span class="count">19</span>
+
+        <a href="?category=accessories&sort=<?= urlencode($sort) ?>"
+        class="cat-pill <?= $category === 'accessories' ? 'active' : '' ?>">
+        Accessories
+        <span class="count"><?= $counts['accessories'] ?? 0 ?></span>
         </a>
-      </div>
+
+    </div>
     </div>
 
     <!-- Price Range -->

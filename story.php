@@ -616,41 +616,87 @@ require_once 'config/database.php';
     <span class="section-tag">Behind the Scenes</span>
     <h2 class="section-title">Inside the <em>Studio</em></h2>
   </div>
-  <div class="gallery-grid">
-    <div class="gallery-cell g1">
-      <img src="https://images.unsplash.com/photo-1582582494705-f8ce0f0a3a7e?w=700&q=80" alt="Studio">
-      <div class="gallery-overlay"><i class="fas fa-expand"></i></div>
-    </div>
-    <div class="gallery-cell g2">
-      <img src="https://images.unsplash.com/photo-1524234107056-1c1f48f64ab8?w=800&q=80" alt="Dyeing process">
-      <div class="gallery-overlay"><i class="fas fa-expand"></i></div>
-    </div>
-    <div class="gallery-cell g3">
-      <img src="https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=600&q=80" alt="Finished fabric">
-      <div class="gallery-overlay"><i class="fas fa-expand"></i></div>
-    </div>
-    <div class="gallery-cell g4">
-      <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=500&q=80" alt="Artisan tools">
-      <div class="gallery-overlay"><i class="fas fa-expand"></i></div>
-    </div>
+  <<div class="gallery-grid">
+
+  <div class="gallery-cell g1">
+    <img src="https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1200&auto=format&fit=crop" alt="Studio">
+    <div class="gallery-overlay"><i class="fas fa-expand"></i></div>
   </div>
+
+  <div class="gallery-cell g2">
+    <img src="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1200&auto=format&fit=crop" alt="Dyeing process">
+    <div class="gallery-overlay"><i class="fas fa-expand"></i></div>
+  </div>
+
+  <div class="gallery-cell g3">
+    <img src="https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=1200&auto=format&fit=crop" alt="Finished fabric">
+    <div class="gallery-overlay"><i class="fas fa-expand"></i></div>
+  </div>
+
+  <div class="gallery-cell g4">
+    <img src="https://images.unsplash.com/photo-1459908676235-d5f02a50184b?q=80&w=1200&auto=format&fit=crop" alt="Artisan tools">
+    <div class="gallery-overlay"><i class="fas fa-expand"></i></div>
+  </div>
+
+</div>
 </section>
 
 <!-- VIDEO -->
 <section class="video-section">
   <div class="header">
-    <span class="section-tag">Watch &amp; Learn</span>
+    <span class="section-tag">Watch & Learn</span>
     <h2 class="section-title">The Art of Batik — <em>In Motion</em></h2>
   </div>
+
   <div class="video-wrap" onclick="openVideoModal()">
-    <img class="video-thumb" src="https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=900&q=80" alt="Video thumbnail">
+    <img class="video-thumb"
+         src="https://img.youtube.com/vi/hDTE3DDYvuE/maxresdefault.jpg"
+         onerror="this.src='https://img.youtube.com/vi/hDTE3DDYvuE/hqdefault.jpg'">
+
     <div class="video-play-overlay">
-      <button class="video-play-btn" aria-label="Play video"><i class="fas fa-play"></i></button>
+      <button class="video-play-btn"><i class="fas fa-play"></i></button>
       <div class="video-label">Watch: The Art of Batik</div>
       <div class="video-duration">4 min · English</div>
     </div>
   </div>
 </section>
+
+<!-- SINGLE CLEAN MODAL -->
+<div class="modal-overlay" id="videoModal" onclick="closeVideoModal(event)">
+  <button class="modal-close" onclick="closeVideoModal(event)">&times;</button>
+
+  <div class="modal-video">
+    <iframe id="videoFrame"
+      src="about:blank"
+      frameborder="0"
+      allow="autoplay; fullscreen"
+      allowfullscreen></iframe>
+  </div>
+</div>
+
+<script>
+function openVideoModal() {
+  const modal = document.getElementById('videoModal');
+  const frame = document.getElementById('videoFrame');
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  frame.src = "https://www.youtube.com/embed/hDTE3DDYvuE?autoplay=1";
+}
+
+function closeVideoModal(e) {
+  const modal = document.getElementById('videoModal');
+  const frame = document.getElementById('videoFrame');
+
+  if (!e || e.target === modal || e.target.classList.contains('modal-close')) {
+    modal.classList.remove('open');
+    document.body.style.overflow = '';
+    frame.src = 'about:blank';
+  }
+}
+</script>
+
 
 <!-- VALUES -->
 <section class="values-section">

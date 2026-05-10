@@ -346,9 +346,10 @@ section {
   background: white;
   cursor: pointer;
 }
-
 .product-info {
   padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .product-category {
@@ -356,12 +357,17 @@ section {
   text-transform: uppercase;
   color: var(--warm-gray);
   margin-bottom: 0.4rem;
+  letter-spacing: 0.08em;
 }
 
 .product-name {
   font-family: 'Playfair Display', serif;
   font-size: 1.15rem;
+  line-height: 1.4;
   margin-bottom: 1rem;
+
+  /* balanced title area */
+  min-height: 3.2rem;
 }
 
 .product-footer {
