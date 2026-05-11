@@ -123,13 +123,6 @@ INSERT INTO products (artisan_id, name, slug, description, price, category, stoc
 (1, 'Handmade Batik Scarf - Silk Blend', 'silk-batik-scarf', 'Luxury silk blend scarf, hand-dyed', 2800.00, 'accessories', 20),
 (1, 'Batik Cotton Fabric - 2m', 'batik-cotton-fabric', 'Cotton fabric perfect for dressmaking', 2200.00, 'fabric', 50);
 
-INSERT INTO product_images (product_id, image_path, sort_order) VALUES
-(1, '/images/products/elephant-sarong-1.jpg', 0),
-(1, '/images/products/elephant-sarong-2.jpg', 1),
-(2, '/images/products/cushion-cover.jpg', 0),
-(3, '/images/products/wall-hanging.jpg', 0),
-(4, '/images/products/silk-scarf.jpg', 0),
-(5, '/images/products/cotton-fabric.jpg', 0);
 
 INSERT INTO product_variants (product_id, size, price_adjustment, stock) VALUES
 (1, 'S', 0, 5), (1, 'M', 0, 5), (1, 'L', 0, 3), (1, 'XL', 100, 2);
