@@ -1,5 +1,6 @@
 <?php
 // catalog.php - Product Catalog with Sidebar Filters
+session_start();
 require_once 'config/database.php';
 
 $category  = $_GET['category']  ?? '';
@@ -555,7 +556,14 @@ $totalProducts = array_sum($counts);
       <i class="fas fa-shopping-bag"></i>
       <span class="cart-badge">0</span>
     </a>
-    <a href="login.php" class="nav-signin">Sign In</a>
+    <?php if (isset($_SESSION['user_id'])): ?>
+  <a href="account.php" style="font-size:0.82rem;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:var(--warm-gray);text-decoration:none;transition:color 0.25s;">
+    <?= htmlspecialchars(explode(' ', $_SESSION['user_name'])[0]) ?>
+  </a>
+  <a href="logout.php" class="nav-signin">Sign Out</a>
+<?php else: ?>
+  <a href="login.php" class="nav-signin">Sign In</a>
+<?php endif; ?>
   </div>
 </nav>
 
