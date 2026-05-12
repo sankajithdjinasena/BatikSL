@@ -7,6 +7,10 @@ if (!isset($_SESSION['user_id'])) {
     header('Location: login.php?redirect=' . urlencode('booking.php'));
     exit;
 }
+
+// Display any errors passed back from booking_process.php
+$errors = $_SESSION['booking_errors'] ?? [];
+unset($_SESSION['booking_errors']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -291,6 +295,15 @@ if (!isset($_SESSION['user_id'])) {
   .field-group input::placeholder,
   .field-group textarea::placeholder { color: #c5bdb6; }
 
+  /* Error messages */
+  .error-box {
+    background: #fff0f0; border: 1.5px solid #f4a0a0;
+    border-radius: 10px; padding: 1rem 1.2rem;
+    margin-bottom: 1.5rem; font-size: 0.88rem; color: #c0392b;
+  }
+  .error-box ul { padding-left: 1.2rem; margin-top: 0.3rem; }
+  .error-box li { margin-top: 0.2rem; }
+
   /* Submit button */
   .submit-btn {
     width: 100%; padding: 1rem;
@@ -448,13 +461,13 @@ if (!isset($_SESSION['user_id'])) {
       <span class="cart-badge">0</span>
     </a>
     <?php if (isset($_SESSION['user_id'])): ?>
-  <a href="account.php" style="font-size:0.82rem;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:var(--warm-gray);text-decoration:none;transition:color 0.25s;">
-    <?= htmlspecialchars(explode(' ', $_SESSION['user_name'])[0]) ?>
-  </a>
-  <a href="logout.php" class="nav-signin">Sign Out</a>
-<?php else: ?>
-  <a href="login.php" class="nav-signin">Sign In</a>
-<?php endif; ?>
+      <a href="account.php" style="font-size:0.82rem;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;color:var(--warm-gray);text-decoration:none;transition:color 0.25s;">
+        <?= htmlspecialchars(explode(' ', $_SESSION['user_name'])[0]) ?>
+      </a>
+      <a href="logout.php" class="nav-signin">Sign Out</a>
+    <?php else: ?>
+      <a href="login.php" class="nav-signin">Sign In</a>
+    <?php endif; ?>
   </div>
 </nav>
 
@@ -514,8 +527,25 @@ if (!isset($_SESSION['user_id'])) {
 <!-- BOOKING BODY -->
 <div class="booking-body">
 
-  <!-- LEFT: FORM PANEL -->
-  <div class="form-panel">
+  <!-- LEFT: FORM PANEL (now a real <form>) -->
+  <form class="form-panel" method="POST" action="booking_process.php">
+
+    <!-- Hidden inputs synced by JS -->
+    <input type="hidden" name="session_date" id="sessionDateVal" value="">
+    <input type="hidden" name="session_time" id="sessionTimeVal" value="">
+    <input type="hidden" name="group_size"   id="groupSizeVal"   value="2">
+
+    <!-- Error box (shown only if redirected back with errors) -->
+    <?php if (!empty($errors)): ?>
+      <div class="error-box">
+        <strong>Please fix the following:</strong>
+        <ul>
+          <?php foreach ($errors as $e): ?>
+            <li><?= htmlspecialchars($e) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endif; ?>
 
     <!-- Step 1: Date & Time -->
     <div class="form-section">
@@ -526,22 +556,22 @@ if (!isset($_SESSION['user_id'])) {
       <div class="form-section-body">
         <div class="field-group">
           <label>Select Date</label>
-          <input type="text" id="datepicker" placeholder="Pick a date…">
+          <input type="text" id="datepicker" placeholder="Pick a date…" readonly>
         </div>
 
         <span class="time-slots-label">Available Time Slots</span>
         <div class="time-slots">
-          <button class="time-slot" data-time="10:00 AM">10:00 AM</button>
-          <button class="time-slot" data-time="2:00 PM">2:00 PM</button>
-          <button class="time-slot" data-time="4:00 PM">4:00 PM</button>
+          <button type="button" class="time-slot" data-time="10:00 AM">10:00 AM</button>
+          <button type="button" class="time-slot" data-time="2:00 PM">2:00 PM</button>
+          <button type="button" class="time-slot" data-time="4:00 PM">4:00 PM</button>
         </div>
 
         <div class="group-size-section">
           <span class="group-size-label">Number of People</span>
           <div class="stepper">
-            <button class="stepper-btn" onclick="changeGroupSize(-1)"><i class="fas fa-minus" style="font-size:0.75rem"></i></button>
+            <button type="button" class="stepper-btn" onclick="changeGroupSize(-1)"><i class="fas fa-minus" style="font-size:0.75rem"></i></button>
             <span class="stepper-val" id="groupSize">2</span>
-            <button class="stepper-btn" onclick="changeGroupSize(1)"><i class="fas fa-plus" style="font-size:0.75rem"></i></button>
+            <button type="button" class="stepper-btn" onclick="changeGroupSize(1)"><i class="fas fa-plus" style="font-size:0.75rem"></i></button>
           </div>
           <span class="group-max-note">Maximum 8 people per session</span>
         </div>
@@ -557,28 +587,33 @@ if (!isset($_SESSION['user_id'])) {
       <div class="form-section-body">
         <div class="field-row">
           <div class="field-group">
-            <label>First Name</label>
-            <input type="text" placeholder="Amara">
+            <label for="first_name">First Name</label>
+            <input type="text" id="first_name" name="first_name" placeholder="Amara" required
+                   value="<?= htmlspecialchars($_POST['first_name'] ?? '') ?>">
           </div>
           <div class="field-group">
-            <label>Last Name</label>
-            <input type="text" placeholder="Perera">
+            <label for="last_name">Last Name</label>
+            <input type="text" id="last_name" name="last_name" placeholder="Perera" required
+                   value="<?= htmlspecialchars($_POST['last_name'] ?? '') ?>">
           </div>
         </div>
         <div class="field-row">
           <div class="field-group">
-            <label>Email</label>
-            <input type="email" placeholder="you@example.com">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" required
+                   value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
           </div>
           <div class="field-group">
-            <label>Phone</label>
-            <input type="tel" placeholder="+94 77 000 0000">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" placeholder="+94 77 000 0000"
+                   value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>">
           </div>
         </div>
         <div class="field-row single">
           <div class="field-group">
-            <label>Special Requests</label>
-            <textarea rows="3" placeholder="Dietary requirements, accessibility needs, celebrating an occasion…"></textarea>
+            <label for="special_requests">Special Requests</label>
+            <textarea id="special_requests" name="special_requests" rows="3"
+                      placeholder="Dietary requirements, accessibility needs, celebrating an occasion…"><?= htmlspecialchars($_POST['special_requests'] ?? '') ?></textarea>
           </div>
         </div>
       </div>
@@ -587,7 +622,7 @@ if (!isset($_SESSION['user_id'])) {
     <!-- Submit -->
     <div class="form-section">
       <div class="form-section-body">
-        <button class="submit-btn">
+        <button type="submit" class="submit-btn">
           <i class="fas fa-lock" style="font-size:0.8rem"></i>
           Confirm Booking — Pay 30% Deposit
         </button>
@@ -598,7 +633,7 @@ if (!isset($_SESSION['user_id'])) {
       </div>
     </div>
 
-  </div><!-- /form-panel -->
+  </form><!-- /form-panel -->
 
   <!-- RIGHT: SUMMARY PANEL -->
   <div class="summary-panel">
@@ -706,10 +741,13 @@ if (!isset($_SESSION['user_id'])) {
   flatpickr("#datepicker", {
     minDate: "today",
     dateFormat: "Y-m-d",
-    onChange: function(selectedDates) {
+    onChange: function(selectedDates, dateStr) {
       const d = selectedDates[0];
+      // Update summary display
       document.getElementById('summaryDate').innerText =
         d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      // Sync hidden input for form POST
+      document.getElementById('sessionDateVal').value = dateStr;
     }
   });
 
@@ -718,7 +756,10 @@ if (!isset($_SESSION['user_id'])) {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.time-slot').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
+      // Update summary display
       document.getElementById('summaryTime').innerText = btn.dataset.time;
+      // Sync hidden input for form POST
+      document.getElementById('sessionTimeVal').value = btn.dataset.time;
     });
   });
 
@@ -735,6 +776,8 @@ if (!isset($_SESSION['user_id'])) {
     document.getElementById('sessionTotal').innerText    = 'LKR ' + total.toLocaleString();
     document.getElementById('depositAmount').innerText   = 'LKR ' + deposit.toLocaleString();
     document.getElementById('balanceNote').innerText     = 'LKR ' + balance.toLocaleString();
+    // Sync hidden input for form POST
+    document.getElementById('groupSizeVal').value        = groupSize;
   }
 
   function changeGroupSize(delta) {
@@ -744,6 +787,21 @@ if (!isset($_SESSION['user_id'])) {
       updatePrices();
     }
   }
+
+  // ── Client-side validation before submit ──
+  document.querySelector('form.form-panel').addEventListener('submit', function(e) {
+    const date = document.getElementById('sessionDateVal').value;
+    const time = document.getElementById('sessionTimeVal').value;
+    if (!date) {
+      e.preventDefault();
+      alert('Please select a session date.');
+      return;
+    }
+    if (!time) {
+      e.preventDefault();
+      alert('Please select a time slot.');
+    }
+  });
 
   updatePrices();
 </script>
