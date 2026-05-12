@@ -9,9 +9,28 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+$userId = (int)$_SESSION['user_id'];
+
 // ── Ensure cart exists ──
 if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
+}
+
+// ── Helper: sync cart quantity to DB ──
+function syncCartToDB(PDO $pdo, int $userId, int $productId, int $quantity): void {
+    if ($quantity <= 0) {
+        // Remove row
+        $stmt = $pdo->prepare("DELETE FROM cart_items WHERE user_id = :uid AND product_id = :pid");
+        $stmt->execute(['uid' => $userId, 'pid' => $productId]);
+    } else {
+        // Upsert
+        $stmt = $pdo->prepare("
+            INSERT INTO cart_items (user_id, product_id, quantity, updated_at)
+            VALUES (:uid, :pid, :qty, NOW())
+            ON DUPLICATE KEY UPDATE quantity = :qty, updated_at = NOW()
+        ");
+        $stmt->execute(['uid' => $userId, 'pid' => $productId, 'qty' => $quantity]);
+    }
 }
 
 // ── Handle AJAX / POST actions (update, remove, clear) ──
@@ -23,9 +42,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update' && isset($_SESSION['cart'][$id])) {
         $qty = max(1, (int)$_POST['quantity']);
         $_SESSION['cart'][$id]['quantity'] = $qty;
+        syncCartToDB($pdo, $userId, $id, $qty);
+
     } elseif ($action === 'remove' && isset($_SESSION['cart'][$id])) {
         unset($_SESSION['cart'][$id]);
+        syncCartToDB($pdo, $userId, $id, 0);
+
     } elseif ($action === 'clear') {
+        // Remove all items for this user from DB
+        $stmt = $pdo->prepare("DELETE FROM cart_items WHERE user_id = :uid");
+        $stmt->execute(['uid' => $userId]);
         $_SESSION['cart'] = [];
     }
 
@@ -46,6 +72,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+// ── On page load: merge DB cart into session ──
+// This handles cases where the user logged in on another device
+$dbCart = $pdo->prepare("
+    SELECT ci.product_id, ci.quantity,
+           p.name, p.price, p.category,
+           pi.image_path
+    FROM cart_items ci
+    JOIN products p  ON p.id = ci.product_id AND p.status = 1
+    LEFT JOIN product_images pi ON pi.product_id = p.id AND pi.sort_order = 0
+    WHERE ci.user_id = :uid
+");
+$dbCart->execute(['uid' => $userId]);
+$dbRows = $dbCart->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($dbRows as $row) {
+    $pid = (int)$row['product_id'];
+    if (!isset($_SESSION['cart'][$pid])) {
+        // Item is in DB but not in session — restore it
+        $_SESSION['cart'][$pid] = [
+            'id'       => $pid,
+            'name'     => $row['name'],
+            'price'    => $row['price'],
+            'quantity' => (int)$row['quantity'],
+            'image'    => $row['image_path'] ?? 'images/placeholder.jpg',
+            'variant'  => null,
+            'category' => $row['category'] ?? 'Batik',
+        ];
+    } else {
+        // Session wins (most recent interaction), but write back to DB to stay in sync
+        syncCartToDB($pdo, $userId, $pid, $_SESSION['cart'][$pid]['quantity']);
+    }
+}
+
+// Also push any session items that aren't in DB yet (e.g. added before this page load)
+foreach ($_SESSION['cart'] as $pid => $item) {
+    $exists = false;
+    foreach ($dbRows as $row) {
+        if ((int)$row['product_id'] === (int)$pid) { $exists = true; break; }
+    }
+    if (!$exists) {
+        syncCartToDB($pdo, $userId, (int)$pid, (int)$item['quantity']);
+    }
+}
+
 // ── Initial page render ──
 $cartItems = array_values($_SESSION['cart']);
 $subtotal  = array_sum(array_map(fn($i) => $i['price'] * $i['quantity'], $cartItems));
@@ -63,6 +133,7 @@ $itemCount = array_sum(array_column($cartItems, 'quantity'));
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
+  /* — styles identical to original — */
   :root {
     --teal: #0f766e;
     --teal-light: #14b8a6;
@@ -75,12 +146,9 @@ $itemCount = array_sum(array_column($cartItems, 'quantity'));
     --border: #e8e3da;
     --red: #dc2626;
   }
-
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--charcoal); overflow-x: hidden; }
-
-  /* ── NAVBAR ── */
   nav { position: sticky; top: 0; z-index: 1000; padding: 1.1rem 4rem; display: flex; align-items: center; justify-content: space-between; background: rgba(250,247,242,0.97); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
   .nav-logo { font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--charcoal); text-decoration:none; }
   .nav-logo span { color: var(--gold); }
@@ -92,33 +160,24 @@ $itemCount = array_sum(array_column($cartItems, 'quantity'));
   .nav-icons a:hover, .nav-icons button:hover { color:var(--teal); }
   .cart-badge { position:absolute; top:-6px; right:-8px; background:var(--gold); color:white; font-size:0.62rem; font-weight:700; width:17px; height:17px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
   .nav-signin { padding:0.45rem 1.3rem; border:1.5px solid var(--teal); border-radius:2rem; font-size:0.78rem; font-weight:500; letter-spacing:0.05em; text-transform:uppercase; color:var(--teal); text-decoration:none; transition:all 0.25s; }
-  .nav-signin:hover {  color:white; }
+  .nav-signin:hover { color:white; }
   .nav-username { font-size:0.82rem; font-weight:500; text-transform:uppercase; letter-spacing:0.05em; color:var(--warm-gray); text-decoration:none; transition:color 0.25s; }
   .nav-username:hover { color:var(--teal); }
-
-  /* ── BREADCRUMB ── */
   .breadcrumb-bar { background:var(--sand); padding:1rem 4rem; display:flex; align-items:center; gap:0.6rem; font-size:0.8rem; color:var(--warm-gray); }
   .breadcrumb-bar a { color:inherit; text-decoration:none; transition:color 0.2s; }
   .breadcrumb-bar a:hover { color:var(--teal); }
   .breadcrumb-bar i { font-size:0.6rem; opacity:0.5; }
-
-  /* ── PAGE HEADER ── */
   .catalog-header { padding:3rem 4rem 2rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:1rem; }
   .catalog-header .tag { font-size:0.72rem; font-weight:500; letter-spacing:0.2em; text-transform:uppercase; color:var(--teal); margin-bottom:0.5rem; display:block; }
   .catalog-header h1 { font-family:'Playfair Display',serif; font-size:clamp(1.8rem,3.5vw,2.8rem); font-weight:700; line-height:1.15; }
   .catalog-header h1 em { font-style:italic; color:var(--teal); }
   .header-meta { font-size:0.85rem; color:var(--warm-gray); }
-
-  /* ── LAYOUT ── */
   .cart-body { display:grid; grid-template-columns:1fr 360px; gap:2.5rem; padding:3rem 4rem; max-width:1280px; margin:0 auto; align-items:start; }
-
-  /* ── CART PANEL ── */
   .cart-panel { display:flex; flex-direction:column; gap:1.2rem; }
   .cart-section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; }
   .cart-section-header h2 { font-family:'Playfair Display',serif; font-size:1.15rem; font-weight:700; }
   .btn-clear-cart { background:none; border:none; cursor:pointer; font-size:0.78rem; color:var(--warm-gray); display:flex; align-items:center; gap:0.4rem; font-family:'DM Sans',sans-serif; transition:color 0.2s; }
   .btn-clear-cart:hover { color:var(--red); }
-
   .cart-item { background:white; border-radius:14px; border:1px solid var(--border); display:flex; gap:1.2rem; padding:1.2rem; align-items:flex-start; transition:opacity 0.3s, transform 0.3s; }
   .cart-item.removing { opacity:0; transform:translateX(20px); }
   .cart-item-img { width:90px; height:90px; border-radius:10px; object-fit:cover; flex-shrink:0; background:var(--sand); }
@@ -138,15 +197,11 @@ $itemCount = array_sum(array_column($cartItems, 'quantity'));
   .cart-item-price .unit { font-size:0.75rem; color:var(--warm-gray); margin-top:0.2rem; }
   .continue-link { display:inline-flex; align-items:center; gap:0.5rem; color:var(--teal); text-decoration:none; font-size:0.84rem; font-weight:500; margin-top:0.5rem; transition:gap 0.2s; }
   .continue-link:hover { gap:0.8rem; }
-
-  /* Shipping bar */
   .shipping-bar-wrap { background:white; border-radius:14px; border:1px solid var(--border); padding:1rem 1.4rem; }
   .shipping-bar-label { font-size:0.8rem; color:var(--warm-gray); margin-bottom:0.6rem; display:flex; justify-content:space-between; }
   .shipping-bar-label strong { color:var(--charcoal); }
   .shipping-bar-track { height:5px; background:var(--sand); border-radius:3px; overflow:hidden; }
   .shipping-bar-fill { height:100%; background:var(--teal); border-radius:3px; transition:width 0.6s ease; }
-
-  /* ── SUMMARY ── */
   .summary-panel { position:sticky; top:calc(72px + 1.5rem); }
   .summary-card { background:white; border-radius:14px; border:1px solid var(--border); overflow:hidden; }
   .summary-card-header { padding:1.4rem 1.6rem; background:var(--charcoal); color:white; display:flex; align-items:center; gap:0.7rem; }
@@ -160,8 +215,6 @@ $itemCount = array_sum(array_column($cartItems, 'quantity'));
   .summary-row.total { margin-top:0.5rem; padding-top:1rem; border-top:2px solid var(--border); border-bottom:none; }
   .summary-row.total .s-label { font-weight:600; font-size:0.9rem; color:var(--charcoal); }
   .summary-row.total .s-value { font-family:'Playfair Display',serif; font-size:1.3rem; color:var(--teal); font-weight:700; }
-
-  /* Promo */
   .promo-wrap { margin:1.2rem 0; }
   .promo-field { display:flex; gap:0.5rem; }
   .promo-field input { flex:1; padding:0.6rem 0.9rem; border:1.5px solid var(--border); border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.85rem; color:var(--charcoal); background:white; outline:none; transition:border-color 0.2s; }
@@ -172,30 +225,21 @@ $itemCount = array_sum(array_column($cartItems, 'quantity'));
   .promo-msg { font-size:0.76rem; margin-top:0.5rem; }
   .promo-msg.success { color:#16a34a; }
   .promo-msg.error   { color:var(--red); }
-
   .btn-checkout { width:100%; padding:1rem; background:var(--teal); color:white; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:background 0.25s; display:flex; align-items:center; justify-content:center; gap:0.6rem; margin-top:1rem; text-decoration:none; }
   .btn-checkout:hover { background:var(--teal-dark); }
-
-  /* Trust badges */
   .trust-badges { background:white; border-radius:14px; border:1px solid var(--border); padding:1.2rem 1.4rem; margin-top:1rem; display:flex; flex-direction:column; gap:0.7rem; }
   .trust-item { display:flex; align-items:center; gap:0.7rem; font-size:0.81rem; color:var(--warm-gray); }
   .trust-item i { color:var(--teal); width:16px; text-align:center; }
-
-  /* Empty state */
   .empty-state { grid-column:1/-1; text-align:center; padding:6rem 2rem; background:white; border-radius:14px; border:1px solid var(--border); }
   .empty-state i { font-size:3rem; color:var(--border); display:block; margin-bottom:1rem; }
   .empty-state h3 { font-family:'Playfair Display',serif; font-size:1.5rem; margin-bottom:0.5rem; }
   .empty-state p { color:var(--warm-gray); margin-bottom:1.5rem; }
   .btn-shop-now { display:inline-flex; align-items:center; gap:0.5rem; padding:0.8rem 1.8rem; background:var(--teal); color:white; border-radius:8px; text-decoration:none; font-size:0.88rem; font-weight:500; transition:background 0.25s; }
   .btn-shop-now:hover { background:var(--teal-dark); }
-
-  /* Toast */
   .toast { position:fixed; bottom:2rem; right:2rem; z-index:9999; background:var(--charcoal); color:white; padding:0.8rem 1.4rem; border-radius:10px; font-size:0.85rem; display:flex; align-items:center; gap:0.6rem; transform:translateY(80px); opacity:0; transition:all 0.35s ease; pointer-events:none; }
   .toast.show { transform:translateY(0); opacity:1; }
   .toast.success i { color:#4ade80; }
   .toast.error i { color:#f87171; }
-
-  /* ── FOOTER ── */
   footer { background:#111; color:rgba(255,255,255,0.6); padding:5rem 4rem 2.5rem; margin-top:6rem; }
   .footer-grid { display:grid; grid-template-columns:2fr 1fr 1fr 1.5fr; gap:4rem; }
   .footer-logo { font-family:'Playfair Display',serif; font-size:1.8rem; color:white; margin-bottom:1rem; display:block; }
@@ -211,21 +255,9 @@ $itemCount = array_sum(array_column($cartItems, 'quantity'));
   .footer-bottom { border-top:1px solid rgba(255,255,255,0.06); margin-top:4rem; padding-top:2rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; font-size:0.8rem; }
   .footer-bottom a { color:inherit; text-decoration:none; }
   .footer-bottom a:hover { color:var(--teal-light); }
-
-  /* ── RESPONSIVE ── */
   @media (max-width: 1024px) { .cart-body { grid-template-columns:1fr; padding:2rem 1.5rem; } .summary-panel { position:static; } }
-  @media (max-width: 860px) {
-    nav { padding:1rem 1.5rem; }
-    .nav-links { display:none; }
-    .catalog-header, .breadcrumb-bar { padding-left:1.5rem; padding-right:1.5rem; }
-    .footer-grid { grid-template-columns:1fr 1fr; gap:2.5rem; }
-    footer { padding:4rem 1.5rem 2rem; }
-  }
-  @media (max-width: 520px) {
-    .cart-item { flex-wrap:wrap; }
-    .cart-item-img { width:72px; height:72px; }
-    .cart-item-price { width:100%; text-align:left; margin-top:0.5rem; }
-  }
+  @media (max-width: 860px) { nav { padding:1rem 1.5rem; } .nav-links { display:none; } .catalog-header, .breadcrumb-bar { padding-left:1.5rem; padding-right:1.5rem; } .footer-grid { grid-template-columns:1fr 1fr; gap:2.5rem; } footer { padding:4rem 1.5rem 2rem; } }
+  @media (max-width: 520px) { .cart-item { flex-wrap:wrap; } .cart-item-img { width:72px; height:72px; } .cart-item-price { width:100%; text-align:left; margin-top:0.5rem; } }
 </style>
 </head>
 <body>
@@ -292,7 +324,6 @@ $itemCount = array_sum(array_column($cartItems, 'quantity'));
 
     <!-- LEFT: CART ITEMS -->
     <div class="form-panel">
-
       <?php
         $freeAt    = 5000;
         $remaining = max(0, $freeAt - $subtotal);
@@ -478,7 +509,6 @@ $itemCount = array_sum(array_column($cartItems, 'quantity'));
   </div>
 </footer>
 
-<!-- TOAST -->
 <div class="toast" id="toast">
   <i class="fas fa-check-circle"></i>
   <span id="toastMsg">Done</span>
@@ -556,7 +586,7 @@ $itemCount = array_sum(array_column($cartItems, 'quantity'));
   }
 
   function updateQty(id, delta) {
-    const qtyEl  = document.getElementById('qty-' + id);
+    const qtyEl   = document.getElementById('qty-' + id);
     const current = parseInt(qtyEl.textContent);
     const newQty  = Math.max(1, current + delta);
     if (newQty === current) return;
